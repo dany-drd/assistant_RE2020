@@ -8,7 +8,7 @@ from sentence_transformers import SentenceTransformer
 
 # Configuration
 MODEL_NAME = "all-MiniLM-L6-v2"
-SAVE_DIR = "C:\\Users\\windows 11\\Downloads"  # Remplace par ton chemin
+SAVE_DIR = os.path.dirname(os.path.abspath(__file__))  # Utilisation du dossier du script
 MISTRAL_API_KEY = "1ynaJUIWuhjOytyTommUH1f19L3Mf2t9"  # Mets ta vraie clé API
 MISTRAL_API_URL = "https://api.mistral.ai/v1/chat/completions"
 
@@ -16,6 +16,11 @@ MISTRAL_API_URL = "https://api.mistral.ai/v1/chat/completions"
 def load_faiss_and_metadata():
     index_path = os.path.join(SAVE_DIR, "faiss_index.idx")
     metadata_path = os.path.join(SAVE_DIR, "metadata.json")
+
+    if not os.path.exists(index_path):
+        raise FileNotFoundError(f"Le fichier d'index FAISS est introuvable : {index_path}")
+    if not os.path.exists(metadata_path):
+        raise FileNotFoundError(f"Le fichier metadata.json est introuvable : {metadata_path}")
 
     index = faiss.read_index(index_path)
 
@@ -56,8 +61,11 @@ query = st.text_input("📝 Entrez votre question :", placeholder="Ex: Quels son
 if st.button("🔎 Rechercher"):
     if query:
         with st.spinner("Recherche en cours... ⏳"):
-            passages = search_faiss(query)
-            response = query_mistral(query, passages) if passages else "Aucun passage pertinent trouvé."
+            try:
+                passages = search_faiss(query)
+                response = query_mistral(query, passages) if passages else "Aucun passage pertinent trouvé."
+            except FileNotFoundError as e:
+                response = f"❌ Erreur : {str(e)}"
         st.subheader("📌 Réponse :")
         st.write(response)
     else:
