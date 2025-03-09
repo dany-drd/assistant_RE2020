@@ -12,6 +12,9 @@ SAVE_DIR = os.path.dirname(os.path.abspath(__file__))  # Utilisation du dossier 
 MISTRAL_API_KEY = "1ynaJUIWuhjOytyTommUH1f19L3Mf2t9"  # Mets ta vraie clé API
 MISTRAL_API_URL = "https://api.mistral.ai/v1/chat/completions"
 
+# Chargement unique du modèle SentenceTransformer
+model = SentenceTransformer(MODEL_NAME)
+
 # Fonction pour charger FAISS et les métadonnées
 def load_faiss_and_metadata():
     index_path = os.path.join(SAVE_DIR, "faiss_index.idx")
@@ -31,10 +34,9 @@ def load_faiss_and_metadata():
 
 # Recherche dans FAISS
 def search_faiss(query, top_k=3):
-    model = SentenceTransformer(MODEL_NAME)
-    query_embedding = model.encode([query])
+    query_embedding = model.encode([query])  # Pas besoin de reconvertir en np.array
     index, metadata = load_faiss_and_metadata()
-    distances, indices = index.search(np.array(query_embedding, dtype=np.float32), top_k)
+    distances, indices = index.search(query_embedding, top_k)
     results = [metadata[str(i)] for i in indices[0] if str(i) in metadata]
     return results
 
@@ -42,18 +44,41 @@ def search_faiss(query, top_k=3):
 def query_mistral(query, passages):
     headers = {"Authorization": f"Bearer {MISTRAL_API_KEY}", "Content-Type": "application/json"}
     context = "\n".join(passages)
-    prompt = f"Voici des extraits du document RE2020 :\n{context}\n\nQuestion : {query}\nRéponse :"
-    data = {"model": "mistral-medium", "messages": [{"role": "user", "content": prompt}], "temperature": 0.5}
+
+    prompt = [
+        {
+            "role": "system",
+            "content": (
+                "Tu es un expert en réglementation environnementale, spécialisé dans la RE2020. "
+                "Ta mission est de répondre aux questions des utilisateurs en t'appuyant sur les informations disponibles dans la réglementation RE2020. "
+                "Tu peux prendre certaines libertés dans l'explication pour la rendre plus claire et pédagogique, mais tu dois rester fidèle aux documents fournis. "
+                "Si une information n'est pas explicitement mentionnée dans les documents, tu peux fournir une interprétation raisonnable en précisant qu'il s'agit d'une extrapolation. "
+                "Si une question ne concerne pas la RE2020 ou si l'information n'est pas disponible dans le contexte fourni, explique poliment que tu es spécialisé dans la RE2020 "
+                "et invite l'utilisateur à poser des questions sur cette réglementation."
+            )
+        },
+        {
+            "role": "user",
+            "content": f"Contexte de la RE2020 :\n{context}\n\nQuestion : {query}"
+        }
+    ]
+
+    data = {"model": "mistral-medium", "messages": prompt, "temperature": 0.5}
 
     response = requests.post(MISTRAL_API_URL, headers=headers, json=data)
+
     if response.status_code == 200:
-        return response.json()["choices"][0]["message"]["content"]
+        response_json = response.json()
+        if "choices" in response_json and len(response_json["choices"]) > 0:
+            return response_json["choices"][0]["message"]["content"]
+        else:
+            return "Réponse invalide de l'API Mistral."
     else:
         return f"Erreur API Mistral : {response.text}"
 
 # Interface Web Streamlit
 st.set_page_config(page_title="Assistant RE2020", page_icon="🏠")
-st.title("🏠  Assistant RE2020")
+st.title("🏠 Assistant RE2020")
 st.write("Posez une question sur la réglementation environnementale RE2020 et obtenez une réponse instantanée.")
 
 query = st.text_input("📝 Entrez votre question :", placeholder="Ex: Quels sont les objectifs de la RE2020 ?")
