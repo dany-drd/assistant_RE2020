@@ -52,7 +52,7 @@ def query_mistral(query, passages):
         return f"Erreur API Mistral : {response.text}"
 
 # Interface Web Streamlit
-st.set_page_config(page_title="Assistant RE2020", page_icon="🏠 ")
+st.set_page_config(page_title="Assistant RE2020", page_icon="🏠")
 st.title("🏠  Assistant RE2020")
 st.write("Posez une question sur la réglementation environnementale RE2020 et obtenez une réponse instantanée.")
 
