@@ -13,7 +13,11 @@ MISTRAL_API_KEY = "1ynaJUIWuhjOytyTommUH1f19L3Mf2t9"  # Mets ta vraie clé API
 MISTRAL_API_URL = "https://api.mistral.ai/v1/chat/completions"
 
 # Chargement unique du modèle SentenceTransformer
-model = SentenceTransformer(MODEL_NAME)
+try:
+    model = SentenceTransformer(MODEL_NAME)
+except Exception as e:
+    st.error(f"Erreur lors du chargement du modèle SentenceTransformer : {e}")
+    st.stop()
 
 # Fonction pour charger FAISS et les métadonnées
 def load_faiss_and_metadata():
@@ -50,7 +54,7 @@ def query_mistral(query, passages):
             "role": "system",
             "content": (
                 "Tu es un expert en réglementation environnementale, spécialisé dans la RE2020. "
-                "Répond toujours en français"
+                "Répond toujours en français. "
                 "Ta mission est de répondre aux questions des utilisateurs en t'appuyant sur les informations disponibles dans la réglementation RE2020. "
                 "Tu peux prendre certaines libertés dans l'explication pour la rendre plus claire et pédagogique, mais tu dois rester fidèle aux documents fournis. "
                 "Si une information n'est pas explicitement mentionnée dans les documents, tu peux fournir une interprétation raisonnable en précisant qu'il s'agit d'une extrapolation. "
